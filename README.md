@@ -3,9 +3,7 @@
 Signals-to-Semantics Fault Detection and Diagnosis (S2S-FDD) scaffold for
 time-series semantic parsing and explainable industrial fault diagnosis.
 
-中文说明见下方；English documentation follows after the Chinese section.
-
-## 中文说明
+## 说明
 
 ### 项目定位
 
@@ -117,7 +115,7 @@ python -m s2s_fdd.demo --knowledge CVACaseStudy/CVACaseStudy/html/CUBenchmark.ht
 - 实现多次独立诊断与投票机制
 - 增加重构、变量筛选和标签解析的自动化测试
 
-## English Documentation
+## Documentation
 
 ### Purpose
 
