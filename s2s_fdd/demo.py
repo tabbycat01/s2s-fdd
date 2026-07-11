@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
+import os
+import sys
+
+if __package__ in {None, ""}:
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(package_dir)
+    sys.path = [path for path in sys.path if os.path.abspath(path or os.curdir) != package_dir]
+    sys.path.insert(0, project_root)
+    __package__ = "s2s_fdd"
+
 import argparse
 import json
 from pathlib import Path
 
 from .data import PROJECT_ROOT, demo_context, ensure_same_variables, read_timeseries_csv
 from .knowledge import KnowledgeRetriever, load_knowledge_cases
+from .deepseek_client import DeepSeekAPIError, DeepSeekClient
 from .reasoning import RuleBasedReasoner
 from .reconstruction import StateMatrixReconstructor
 from .report import build_report
@@ -23,6 +34,8 @@ def run_demo(
     window: int = 3,
     top_k: int = 3,
     knowledge_path: Path | None = None,
+    llm_semantics: bool = False,
+    semantic_model: str | None = None,
 ) -> dict[str, object]:
     normal = read_timeseries_csv(normal_file)
     fault = read_timeseries_csv(fault_file)
@@ -42,7 +55,15 @@ def run_demo(
         top_score=top_k,
         top_early=top_k,
     )
-    descriptions = describe_variables(context, fault_reconstruction, findings)
+    semantic_generator = None
+    if llm_semantics:
+        semantic_generator = DeepSeekClient(model=semantic_model).generate_semantic_description
+    descriptions = describe_variables(
+        context,
+        fault_reconstruction,
+        findings,
+        text_generator=semantic_generator,
+    )
     cases = load_knowledge_cases(knowledge_path or context.fault_knowledge_path)
     retrieved = KnowledgeRetriever(cases).retrieve(descriptions, top_k=top_k)
     diagnosis = RuleBasedReasoner().diagnose(context, descriptions, retrieved)
@@ -65,20 +86,35 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--alpha", type=float, default=3.0)
     parser.add_argument("--window", type=int, default=3)
     parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument(
+        "--llm-semantics",
+        action="store_true",
+        help="Generate temporal semantic descriptions with the DeepSeek API.",
+    )
+    parser.add_argument(
+        "--semantic-model",
+        default=None,
+        help="DeepSeek model for --llm-semantics. Defaults to DEEPSEEK_MODEL or the project default.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    result = run_demo(
-        normal_file=args.normal,
-        fault_file=args.fault,
-        n_states=args.n_states,
-        alpha=args.alpha,
-        window=args.window,
-        top_k=args.top_k,
-        knowledge_path=args.knowledge,
-    )
+    try:
+        result = run_demo(
+            normal_file=args.normal,
+            fault_file=args.fault,
+            n_states=args.n_states,
+            alpha=args.alpha,
+            window=args.window,
+            top_k=args.top_k,
+            knowledge_path=args.knowledge,
+            llm_semantics=args.llm_semantics,
+            semantic_model=args.semantic_model,
+        )
+    except DeepSeekAPIError as exc:
+        raise SystemExit(f"DeepSeek semantic generation failed: {exc}") from exc
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 

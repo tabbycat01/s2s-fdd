@@ -23,6 +23,8 @@ s2s_fdd/
   reasoning.py          # 诊断 Prompt、标签解析与工具调用接口
   report.py             # 结构化诊断报告生成
   evaluation.py         # 投票与准确率评估工具
+  deepseek_client.py    # DeepSeek Chat Completions 调用封装
+  cvacase.py            # CVACaseStudy .mat 数据运行入口
   demo.py               # 可运行的端到端示例
 examples/
   normal.csv
@@ -97,11 +99,56 @@ python -m s2s_fdd.demo \
 python -m s2s_fdd.demo --knowledge CVACaseStudy/CVACaseStudy/html/CUBenchmark.html
 ```
 
+运行 CVACaseStudy Fault Case 1 / Set1_1 本地语义描述：
+
+```bash
+python -m s2s_fdd.cvacase --fault-case 1 --set Set1_1
+```
+
+运行 DeepSeek 时序描述版本：
+
+```powershell
+$env:DEEPSEEK_API_KEY="你的 DeepSeek API key"
+python -m s2s_fdd.cvacase --fault-case 1 --set Set1_1 --llm-semantics
+```
+
+输出目录：
+
+```text
+outputs/cvacase/fault1/set1_1/
+  report_local.json
+  semantic_descriptions_local.json
+  semantic_descriptions_deepseek.json
+```
+
+### Fault Case 1 当前结果
+
+当前已运行 `FaultyCase1 / Set1_1`，正常样本使用 `T2+T3` 的前 23 个变量，参数为 `n_states=10`、`alpha=3.0`、`window=10`。
+
+关键变量筛选结果为：
+
+```text
+x1, x8, x23, x19, x15, x12, x5, x3, x4, x10, x6, x7
+```
+
+最强变量为 `x1`，score 为 `4037.07`。其中与 Fault Case 1 空气管线堵塞直接相关的早期强异常包括：
+
+| 变量 | 含义 | 首次连续异常时间 | 异常比例 | 最大残差 | 主要方向 |
+| --- | --- | ---: | ---: | ---: | --- |
+| x1 | PT312 air delivery pressure | 962 | 52% | 0.587 | 高于理想值 |
+| x8 | FT305 air input flow rate | 899 | 17% | 0.070 | 低于理想值 |
+
+DeepSeek 时序描述显示，`x1` 从 962 附近开始持续高于理想正常值，后期偏差最强，最大偏差出现在 5075；`x8` 从 899 附近开始主要低于理想值，后期出现明显下降和较强波动，最大偏差出现在 4894。这与 Fault Case 1 的“空气输入通道受阻，压力和空气流量首先异常”的方向是一致的。
+
+需要注意：当前 `report_local.json` 中的 fallback 诊断结果为 `04_fault_case_3_top_separator_input_blockage`，这是轻量词法 RAG 和规则诊断器的误召回结果，不应作为最终诊断结论。当前可信的部分是“信号到语义”的变量选择和时序描述；后续需要用 embedding 检索和诊断 LLM 替换 fallback reasoner。
+
 ### 当前已实现
 
 - 基于 numpy 的正常状态重构
 - 基于残差的关键变量筛选
 - 时序语义表格与 Prompt 生成
+- DeepSeek 时序描述调用
+- CVACaseStudy Fault Case 运行入口
 - 轻量级词法 RAG 骨架
 - 诊断 Prompt 构建与输出标签解析
 - 确定性 fallback reasoner
@@ -109,9 +156,9 @@ python -m s2s_fdd.demo --knowledge CVACaseStudy/CVACaseStudy/html/CUBenchmark.ht
 
 ### 后续工作
 
-- 将本地语义摘要替换为 LLM 调用
 - 将词法检索替换为 embedding 粗召回和 cross-encoder 精排
-- 补充 CVACaseStudy 的测点名称、流程说明和故障知识
+- 将诊断阶段替换为 LLM 多轮假设验证和工具调用
+- 批量运行 CVACaseStudy 六类故障与多组 set
 - 实现多次独立诊断与投票机制
 - 增加重构、变量筛选和标签解析的自动化测试
 
@@ -141,6 +188,8 @@ s2s_fdd/
   reasoning.py          # diagnosis prompt, tag parsing, tool-call interface
   report.py             # structured report assembly
   evaluation.py         # voting and accuracy helpers
+  deepseek_client.py    # DeepSeek Chat Completions wrapper
+  cvacase.py            # CVACaseStudy .mat runner
   demo.py               # runnable end-to-end demo
 examples/
   normal.csv
@@ -218,11 +267,56 @@ Use a local knowledge file or directory:
 python -m s2s_fdd.demo --knowledge CVACaseStudy/CVACaseStudy/html/CUBenchmark.html
 ```
 
+Run CVACaseStudy Fault Case 1 / Set1_1 with local semantic descriptions:
+
+```bash
+python -m s2s_fdd.cvacase --fault-case 1 --set Set1_1
+```
+
+Run the DeepSeek semantic-description version:
+
+```powershell
+$env:DEEPSEEK_API_KEY="your DeepSeek API key"
+python -m s2s_fdd.cvacase --fault-case 1 --set Set1_1 --llm-semantics
+```
+
+Output directory:
+
+```text
+outputs/cvacase/fault1/set1_1/
+  report_local.json
+  semantic_descriptions_local.json
+  semantic_descriptions_deepseek.json
+```
+
+### Fault Case 1 Current Result
+
+`FaultyCase1 / Set1_1` has been run with `T2+T3` as the normal reference over the first 23 variables, using `n_states=10`, `alpha=3.0`, and `window=10`.
+
+Selected key variables:
+
+```text
+x1, x8, x23, x19, x15, x12, x5, x3, x4, x10, x6, x7
+```
+
+The strongest variable is `x1`, with score `4037.07`. The most relevant early variables for Fault Case 1 air-line blockage are:
+
+| Variable | Meaning | First continuous anomaly | Anomaly ratio | Max residual | Main direction |
+| --- | --- | ---: | ---: | ---: | --- |
+| x1 | PT312 air delivery pressure | 962 | 52% | 0.587 | above ideal |
+| x8 | FT305 air input flow rate | 899 | 17% | 0.070 | below ideal |
+
+The DeepSeek temporal descriptions state that `x1` becomes persistently above the ideal normal value near timestamp 962, with the strongest late-stage deviation and a peak at 5075. `x8` becomes mainly lower than the ideal value near timestamp 899, with a pronounced late-stage drop and stronger volatility, peaking at 4894. This is consistent with the expected air-line blockage direction, where air delivery pressure and air input flow become early abnormal signals.
+
+Note: the fallback diagnosis in `report_local.json` is `04_fault_case_3_top_separator_input_blockage`. This is a misretrieval from the current lightweight lexical RAG plus deterministic fallback reasoner, not the final diagnosis. The reliable part at this stage is the signal-to-semantics output; the diagnostic stage still needs embedding retrieval and an LLM-based multi-round verifier.
+
 ### Implemented
 
 - numpy-only normal-state reconstruction
 - residual-based key-variable selection
 - temporal semantic table and prompt generation
+- DeepSeek semantic-description calls
+- CVACaseStudy Fault Case runner
 - lightweight lexical RAG scaffold
 - diagnosis prompt construction and output tag parsing
 - deterministic fallback reasoner
@@ -230,13 +324,19 @@ python -m s2s_fdd.demo --knowledge CVACaseStudy/CVACaseStudy/html/CUBenchmark.ht
 
 ### Next Steps
 
-- replace local semantic summaries with an LLM call
 - replace lexical retrieval with embedding recall and cross-encoder reranking
-- add CVACaseStudy-specific sensor names, process text, and fault knowledge
+- replace the diagnosis fallback with LLM-based multi-round hypothesis verification
+- batch-run all CVACaseStudy fault cases and data sets
 - run repeated diagnosis sessions and majority voting for paper-style metrics
 - add tests around reconstruction, variable selection, and output parsing
 
 ## Version History / 版本记录
+
+### v0.1.2 - CVACase Fault Case 1 result
+
+- Added CVACaseStudy runner and DeepSeek semantic-description usage notes.
+- Documented the current `FaultyCase1 / Set1_1` result, selected variables, and output files.
+- Marked the current fallback diagnosis as a known retrieval/reasoning limitation.
 
 ### v0.1.1 - README bilingual update
 

@@ -92,15 +92,38 @@ def demo_context(variables: list[str]) -> ProcessContext:
 
 def cvacase_context() -> ProcessContext:
     sensors = [
-        SensorMeta(name=f"x{i}", description="CVACaseStudy process variable")
-        for i in range(1, 24)
+        SensorMeta(name="x1", description="PT312 air delivery pressure", unit="MPa"),
+        SensorMeta(name="x2", description="PT401 pressure at bottom of riser", unit="MPa"),
+        SensorMeta(name="x3", description="PT408 pressure at top of riser", unit="MPa"),
+        SensorMeta(name="x4", description="PT403 pressure in top separator", unit="MPa"),
+        SensorMeta(name="x5", description="PT501 pressure in three-phase separator", unit="MPa"),
+        SensorMeta(name="x6", description="Differential pressure PT401-PT408", unit="MPa"),
+        SensorMeta(name="x7", description="Differential pressure over VC404, PT408-PT403", unit="MPa"),
+        SensorMeta(name="x8", description="FT305 air input flow rate", unit="Sm3/s"),
+        SensorMeta(name="x9", description="FT104 water input flow rate", unit="kg/s"),
+        SensorMeta(name="x10", description="FT407 flow rate at top of riser", unit="kg/s"),
+        SensorMeta(name="x11", description="LI405 level in top separator", unit="m"),
+        SensorMeta(name="x12", description="FT406 top separator output flow rate", unit="kg/s"),
+        SensorMeta(name="x13", description="FT407 density at top of riser", unit="kg/m3"),
+        SensorMeta(name="x14", description="FT406 density at top separator output", unit="kg/m3"),
+        SensorMeta(name="x15", description="FT104 density of water input", unit="kg/m3"),
+        SensorMeta(name="x16", description="FT407 temperature at top of riser", unit="deg C"),
+        SensorMeta(name="x17", description="FT406 temperature at top separator output", unit="deg C"),
+        SensorMeta(name="x18", description="FT104 temperature of water input", unit="deg C"),
+        SensorMeta(name="x19", description="LI504 gas-liquid level in three-phase separator", unit="%"),
+        SensorMeta(name="x20", description="VC501 valve position", unit="%"),
+        SensorMeta(name="x21", description="VC302 air valve position", unit="%"),
+        SensorMeta(name="x22", description="VC101 water valve position", unit="%"),
+        SensorMeta(name="x23", description="PO1 water pump current", unit="A"),
+        SensorMeta(name="x24", description="PT417 pressure in mixture zone of 2 inch line", unit="MPa"),
     ]
     return ProcessContext(
         name="CVACaseStudy",
         process_info=(
-            "CVACaseStudy is a canonical variate analysis process monitoring "
-            "benchmark containing normal training data and multiple faulty cases."
+            "CVACaseStudy is a Cranfield multiphase-flow statistical process "
+            "monitoring benchmark with normal training data and six seeded "
+            "fault classes under changing operating conditions."
         ),
         sensors=sensors,
-        fault_knowledge_path=CVACASE_ROOT / "html" / "CUBenchmark.html",
+        fault_knowledge_path=PROJECT_ROOT / "CVACaseStudy" / "knowledge",
     )
